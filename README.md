@@ -1,122 +1,134 @@
 # Quizly — Quiz Platform
 
-## Run the project on Windows
+Quizly is a Spring Boot quiz app with separate student and instructor accounts.
+Students can take quizzes and review their attempts. Instructors can create
+quizzes and questions, view every quiz's answer key, and review student results.
+
+## Run Quizly on Windows
 
 ### Prerequisites
 
 - Java 21
-- MySQL
+- MySQL Server running locally
 
-Maven does not need to be installed separately. The project includes the Maven
+Maven does not need to be installed separately; the project includes the Maven
 Wrapper (`mvnw.cmd`).
 
-### Automatic database setup
+### 1. Configure MySQL
 
-On startup, the application creates the `quiz_platform` database if it does not
-exist (the configured MySQL user must have permission to create databases).
-Hibernate creates or updates its tables, then
-[data.sql](./quizly/src/main/resources/data.sql) seeds three sample quizzes
-and nine questions. The seed script is safe to run on each startup and does not
-duplicate those samples.
+Quizly connects to MySQL at `localhost:3306` and uses the `quiz_platform`
+database. It creates that database automatically if it does not exist. The
+configured MySQL user must have permission to create databases.
 
-### Configure the database
-
-1. Start MySQL.
-2. (Optional) Create the database manually if your MySQL account cannot create
-   databases automatically:
-
-   ```sql
-   CREATE DATABASE quiz_platform;
-   ```
-
-3. Open `quizly/src/main/resources/application.properties` and set the
-   datasource URL, username, and password to match your MySQL installation:
-
-   ```properties
-   spring.datasource.url=jdbc:mysql://localhost:3306/quiz_platform
-   spring.datasource.username=root
-   spring.datasource.password=your_mysql_password
-   ```
-
-   Do not commit your real database password to the repository.
-
-### Start the application
-
-Open PowerShell in the `quizly` directory (the directory containing
-`mvnw.cmd`) and run:
+The default MySQL username is `root`. If your MySQL credentials differ, set
+them in the PowerShell session before starting Quizly:
 
 ```powershell
+$env:DB_USERNAME = 'your-mysql-username'
+$env:SPRING_DATASOURCE_PASSWORD = 'your-mysql-password'
+```
+
+You can also update `spring.datasource.url`, `spring.datasource.username`, and
+`spring.datasource.password` in
+`quizly/src/main/resources/application.properties`. Do not commit real
+database passwords.
+
+On startup, Hibernate creates or updates the database tables, then
+[data.sql](./quizly/src/main/resources/data.sql) adds three sample quizzes and
+nine questions without duplicating them on future startups.
+
+### 2. Start the app
+
+Open PowerShell in the repository folder (the folder containing `README.md`),
+then choose either method.
+
+**Quick demo — recommended:** from File Explorer, double-click
+`quizly/run-demo.cmd`, or run:
+
+```powershell
+.\quizly\run-demo.cmd
+```
+
+This starts Quizly with the demo instructor invite code `quizly-demo`.
+
+**Regular startup:** configure an instructor invite code in
+`quizly/config/credentials.properties` (details below), then run:
+
+```powershell
+Set-Location .\quizly
 .\mvnw.cmd spring-boot:run
 ```
 
-On the first run, the wrapper may download Maven and the project dependencies.
-Keep the terminal open while the application is running. Look for a
-`Started QuizlyApplication` message and Tomcat's port (default `8080`).
+Keep the terminal open while Quizly runs. On the first launch, Maven may
+download itself and project dependencies. Wait for the `Started
+QuizlyApplication` message, then open [http://localhost:8080](http://localhost:8080).
+To stop the app, press **Ctrl+C** in its terminal.
 
-Then open [http://localhost:8080](http://localhost:8080) in a browser.
+If port 8080 is already in use, choose another port before starting:
 
-### Quick demo setup
+```powershell
+$env:SERVER_PORT = '8094'
+.\quizly\run-demo.cmd
+```
 
-For a presentation or local demo, run `run-demo.cmd` from the `quizly` folder
-(or double-click it in File Explorer). It starts Quizly with the instructor
-invite code `quizly-demo`; enter that code when creating an instructor account.
-Students can create accounts without an invite code.
+Then open [http://localhost:8094](http://localhost:8094).
 
-Quizly creates JWTs automatically when users sign up or sign in. You do not
-need to create or paste a JWT. The signing key is generated automatically
-unless you choose to configure one.
+If Maven is installed and available on your PATH, regular startup can also use
+`mvn spring-boot:run` from inside the `quizly` folder.
 
-### Student and instructor accounts
+## Create an account
 
-Choose **Sign in**, select **Student** or **Instructor**, and create the
-appropriate account. Students can take quizzes and review their own attempts.
-Instructor signup requires an invite code; students cannot access instructor
-features or register as instructors without that code. Instructors can manage
-only the quizzes they own, and can browse every platform quiz with its questions
-and answer key in **Manage quizzes → View questions & answers**. The **Results &
-insights** page shows attempts for all quizzes by default, with an optional quiz
-filter and detailed answers. Students see
-their answer-by-answer review immediately after submitting a quiz and can revisit
-it under **My progress**. Passwords are BCrypt-hashed and must be 8–72 bytes.
+1. Open Quizly in your browser and click **Sign in**.
+2. Choose **Student** or **Instructor**.
+3. Click **Create an account**, enter your name, email, and password, then
+   submit the form. Passwords must be 8–72 bytes.
+4. For instructor registration, also enter the invite code:
+   - With `run-demo.cmd`, use `quizly-demo`.
+   - With regular startup, use the value of `INSTRUCTOR_INVITE_CODE` in
+     `quizly/config/credentials.properties`.
+5. Registration signs you in automatically. Later, use the same account type,
+   email, and password to sign in.
 
-For regular local development, keep your own instructor invite code in the untracked
-`quizly/config/credentials.properties` file. Copy
-`quizly/config/credentials.example.properties` to that filename (or edit the
-local file if it already exists):
+Students do not need an invite code. If an account already exists, choose
+**Sign in** rather than trying to register it again. JWTs are created
+automatically at sign-in; users do not need to create or paste a token.
+
+### Set a private instructor invite code
+
+For regular development, create or edit
+`quizly/config/credentials.properties` with:
 
 ```properties
 INSTRUCTOR_INVITE_CODE=choose-a-private-invite-code
 ```
 
-Spring Boot loads this file automatically when you start the app from the
-`quizly` project directory. `config/credentials.properties` is excluded by
-`.gitignore`; do not commit or share it. If `INSTRUCTOR_INVITE_CODE` is blank or
-unset, new instructor registration is disabled. Previously created instructor
-accounts can still sign in. The `quizly-demo` code is only for demonstrations;
-choose a private code for any shared or deployed environment.
+Spring Boot loads this local file automatically when started from the `quizly`
+folder. It is excluded by `.gitignore`; do not commit or share it. If the code
+is blank or unset, new instructor registrations are disabled. Use the
+`quizly-demo` code only for a local presentation, not for a deployed or shared
+environment.
 
-JWTs expire after 8 hours. A signing key is generated at startup, so users sign
-in again after a restart. Optionally, set a private `JWT_SECRET` (at least 32
-bytes) in `credentials.properties` to keep tokens valid across restarts. You
-can override database connection settings using `DB_URL`, `DB_USERNAME`, and
-`SPRING_DATASOURCE_PASSWORD`.
+### JWT signing key (optional)
 
-If port `8080` is already in use, choose another port before starting:
+Quizly creates and signs JWTs automatically using a key generated when the app
+starts. Tokens expire after 8 hours; with the default generated key, users must
+sign in again after restarting the app. To keep tokens valid across restarts,
+you may add a private `JWT_SECRET` of at least 32 bytes to
+`quizly/config/credentials.properties`. Creating a JWT manually is never
+required.
 
-```powershell
-$env:SERVER_PORT = '8094'
-.\mvnw.cmd spring-boot:run
-```
+## Using Quizly
 
-Then open [http://localhost:8094](http://localhost:8094).
+- **Students:** Explore quizzes, take one, see an answer-by-answer review after
+  submission, and revisit attempts under **My progress**.
+- **Instructors:** Create and manage your own quizzes, view questions and
+  correct answers for all platform quizzes, and review attempts and answers
+  under **Results**. The results page shows attempts from all quizzes by
+  default; use its quiz filter to narrow the list. Instructors cannot take
+  quizzes.
 
-If Maven is installed and available on your PATH, this shorter command also
-works from the `quizly` directory:
-
-```powershell
-mvn spring-boot:run
-```
-
-If startup fails, check the terminal output. Database connection errors
-typically indicate that MySQL is not running or the connection settings in
-`application.properties` do not match your MySQL setup.
+If a new or updated feature does not appear, stop the running app with
+**Ctrl+C**, restart it, and refresh the browser with **Ctrl+F5**. Database
+connection errors usually mean MySQL is not running or the connection settings
+do not match your local MySQL setup. `DB_URL`, `DB_USERNAME`, and
+`SPRING_DATASOURCE_PASSWORD` can override the database connection.
