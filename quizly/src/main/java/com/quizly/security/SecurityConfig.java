@@ -40,7 +40,7 @@ public class SecurityConfig {
                                 "/auth/student/register", "/auth/student/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/quizzes/mine",
                                 "/questions/quiz/*/answer-key", "/attempts/student/**",
-                                "/attempts/quiz/**", "/results/analytics/**", "/instructors/**")
+                                "/attempts/quiz/**", "/attempts", "/results/analytics/**", "/instructors/**")
                                 .hasRole("INSTRUCTOR")
                         .requestMatchers(HttpMethod.GET, "/quizzes", "/quizzes/**",
                                 "/questions/quiz/*").permitAll()

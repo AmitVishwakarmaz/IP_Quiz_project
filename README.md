@@ -55,45 +55,50 @@ Keep the terminal open while the application is running. Look for a
 
 Then open [http://localhost:8080](http://localhost:8080) in a browser.
 
+### Quick demo setup
+
+For a presentation or local demo, run `run-demo.cmd` from the `quizly` folder
+(or double-click it in File Explorer). It starts Quizly with the instructor
+invite code `quizly-demo`; enter that code when creating an instructor account.
+Students can create accounts without an invite code.
+
+Quizly creates JWTs automatically when users sign up or sign in. You do not
+need to create or paste a JWT. The signing key is generated automatically
+unless you choose to configure one.
+
 ### Student and instructor accounts
 
 Choose **Sign in**, select **Student** or **Instructor**, and create the
 appropriate account. Students can take quizzes and review their own attempts.
 Instructor signup requires an invite code; students cannot access instructor
 features or register as instructors without that code. Instructors can manage
-only the quizzes they own. Passwords are BCrypt-hashed and must be 8–72 bytes.
+only the quizzes they own, and can browse every platform quiz with its questions
+and answer key in **Manage quizzes → View questions & answers**. The **Results &
+insights** page shows attempts for all quizzes by default, with an optional quiz
+filter and detailed answers. Students see
+their answer-by-answer review immediately after submitting a quiz and can revisit
+it under **My progress**. Passwords are BCrypt-hashed and must be 8–72 bytes.
 
-Set a private invite code in PowerShell before starting the app. There is no
-default code:
+For regular local development, keep your own instructor invite code in the untracked
+`quizly/config/credentials.properties` file. Copy
+`quizly/config/credentials.example.properties` to that filename (or edit the
+local file if it already exists):
 
-```powershell
-$env:INSTRUCTOR_INVITE_CODE = 'choose-a-private-invite-code'
-.\mvnw.cmd spring-boot:run
+```properties
+INSTRUCTOR_INVITE_CODE=choose-a-private-invite-code
 ```
 
-If `INSTRUCTOR_INVITE_CODE` is unset, new instructor registration is disabled.
-Previously created instructor accounts can still sign in. Do not commit or
-share the invite code.
+Spring Boot loads this file automatically when you start the app from the
+`quizly` project directory. `config/credentials.properties` is excluded by
+`.gitignore`; do not commit or share it. If `INSTRUCTOR_INVITE_CODE` is blank or
+unset, new instructor registration is disabled. Previously created instructor
+accounts can still sign in. The `quizly-demo` code is only for demonstrations;
+choose a private code for any shared or deployed environment.
 
-JWTs expire after 8 hours. For local development, a signing key is generated
-automatically on startup, so users must sign in again after a server restart.
-To keep tokens valid across restarts, set a private key:
-
-```powershell
-$env:JWT_SECRET = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-```
-
-For repeated local use, set both secrets in the same PowerShell session before
-starting the app:
-
-```powershell
-$env:INSTRUCTOR_INVITE_CODE = 'choose-a-private-invite-code'
-$env:JWT_SECRET = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-.\mvnw.cmd spring-boot:run
-```
-
-Keep both values private and out of source control. You can also override the
-database connection using `DB_URL`, `DB_USERNAME`, and
+JWTs expire after 8 hours. A signing key is generated at startup, so users sign
+in again after a restart. Optionally, set a private `JWT_SECRET` (at least 32
+bytes) in `credentials.properties` to keep tokens valid across restarts. You
+can override database connection settings using `DB_URL`, `DB_USERNAME`, and
 `SPRING_DATASOURCE_PASSWORD`.
 
 If port `8080` is already in use, choose another port before starting:

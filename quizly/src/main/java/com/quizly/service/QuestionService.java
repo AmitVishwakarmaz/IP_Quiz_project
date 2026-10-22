@@ -51,8 +51,9 @@ public class QuestionService {
         return questionRepository.findByQuizId(quizId).stream().map(this::toDTO).toList();
     }
 
-    public List<QuestionDTO> getAnswerKey(Long quizId, String instructorEmail) {
-        findOwnedQuiz(quizId, instructorEmail);
+    public List<QuestionDTO> getAnswerKey(Long quizId) {
+        quizRepository.findById(quizId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found"));
         return getQuestionsByQuizId(quizId);
     }
 

@@ -21,12 +21,12 @@ public class ResultController {
         boolean instructor = authentication.getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals("ROLE_INSTRUCTOR"));
         return instructor
-                ? resultService.getResultsByAttemptForInstructor(attemptId, authentication.getName())
+                ? resultService.getResultsByAttemptForInstructor(attemptId)
                 : resultService.getResultsByAttemptForStudent(attemptId, authentication.getName());
     }
 
     @GetMapping("/analytics/{quizId}")
-    public Map<String, Object> getQuizAnalytics(@PathVariable Long quizId, Authentication authentication) {
-        return resultService.getQuizAnalyticsForInstructor(quizId, authentication.getName());
+    public Map<String, Object> getQuizAnalytics(@PathVariable Long quizId) {
+        return resultService.getQuizAnalyticsForInstructor(quizId);
     }
 }

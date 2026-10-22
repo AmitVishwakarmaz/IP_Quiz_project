@@ -104,13 +104,12 @@ public class AttemptService {
         return toDTOs(attemptRepository.findByStudentId(student.getId()));
     }
 
-    public List<AttemptDTO> getAttemptsByStudent(String studentName, String instructorEmail) {
-        List<AttemptEntity> entities = attemptRepository.findByStudentName(studentName).stream()
-                .filter(attempt -> attempt.getQuiz() != null
-                        && attempt.getQuiz().getInstructor() != null
-                        && attempt.getQuiz().getInstructor().getEmail().equalsIgnoreCase(instructorEmail))
-                .toList();
-        return toDTOs(entities);
+    public List<AttemptDTO> getAllAttempts() {
+        return toDTOs(attemptRepository.findAll());
+    }
+
+    public List<AttemptDTO> getAttemptsByStudent(String studentName) {
+        return toDTOs(attemptRepository.findByStudentName(studentName));
     }
 
     private List<AttemptDTO> toDTOs(List<AttemptEntity> entities) {
@@ -130,10 +129,10 @@ public class AttemptService {
     }
 
     //GET ATTEMPTS BY QUIZ
-    public List<AttemptDTO> getAttemptsByQuiz(Long quizId, String instructorEmail) {
-        quizRepository.findByIdAndInstructorEmailIgnoreCase(quizId, instructorEmail)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found"));
-        List<AttemptEntity> entities = attemptRepository.findByQuizId(quizId);
-        return toDTOs(entities);
+    public List<AttemptDTO> getAttemptsByQuiz(Long quizId) {
+        if (!quizRepository.existsById(quizId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found");
+        }
+        return toDTOs(attemptRepository.findByQuizId(quizId));
     }
 }

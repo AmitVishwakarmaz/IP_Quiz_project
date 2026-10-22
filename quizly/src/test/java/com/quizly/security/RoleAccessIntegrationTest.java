@@ -78,6 +78,28 @@ class RoleAccessIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         long quizId = objectMapper.readTree(quizResponse).get("id").asLong();
+        mockMvc.perform(post("/questions")
+                        .header("Authorization", bearer(instructorToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "quizId", quizId,
+                                "questionText", "Which option is correct?",
+                                "optionA", "A",
+                                "optionB", "B",
+                                "optionC", "C",
+                                "optionD", "D",
+                                "correctOption", "B"))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/quizzes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(4));
+        mockMvc.perform(get("/questions/quiz/{quizId}/answer-key", quizId)
+                        .header("Authorization", bearer(otherInstructorToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].questionText").value("Which option is correct?"))
+                .andExpect(jsonPath("$[0].optionB").value("B"))
+                .andExpect(jsonPath("$[0].correctOption").value("B"));
 
         mockMvc.perform(delete("/quizzes/{id}", quizId)
                         .header("Authorization", bearer(otherInstructorToken)))
@@ -103,6 +125,28 @@ class RoleAccessIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         long attemptId = objectMapper.readTree(attemptResponse).get("id").asLong();
 
+        mockMvc.perform(get("/results/attempt/{id}", attemptId)
+                        .header("Authorization", bearer(studentToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].questionText").exists())
+                .andExpect(jsonPath("$[0].optionC").exists())
+                .andExpect(jsonPath("$[0].correctOption").exists())
+                .andExpect(jsonPath("$[0].correct").exists());
+        mockMvc.perform(get("/attempts/quiz/1")
+                        .header("Authorization", bearer(instructorToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].studentName").value("Learner"));
+        mockMvc.perform(get("/attempts")
+                        .header("Authorization", bearer(instructorToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].studentName").value("Learner"));
+        mockMvc.perform(get("/attempts")
+                        .header("Authorization", bearer(studentToken)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/results/analytics/1")
+                        .header("Authorization", bearer(instructorToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalAttempts").value(1));
         mockMvc.perform(get("/questions/quiz/1/answer-key")
                         .header("Authorization", bearer(studentToken)))
                 .andExpect(status().isForbidden());
@@ -112,6 +156,8 @@ class RoleAccessIntegrationTest {
         mockMvc.perform(get("/attempts/me").header("Authorization", bearer(studentToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].studentName").value("Learner"));
+        mockMvc.perform(get("/attempts/quiz/1").header("Authorization", bearer(studentToken)))
+                .andExpect(status().isForbidden());
         mockMvc.perform(get("/quizzes/mine").header("Authorization", bearer(instructorToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].instructorId").value(1));

@@ -26,13 +26,18 @@ public class AttemptController {
         return attemptService.getMyAttempts(authentication.getName());
     }
 
+    @GetMapping
+    public List<AttemptDTO> getAllAttempts() {
+        return attemptService.getAllAttempts();
+    }
+
     @GetMapping("/student/{name}")
-    public List<AttemptDTO> getAttemptsByStudent(@PathVariable String name, Authentication authentication) {
-        return attemptService.getAttemptsByStudent(name, authentication.getName());
+    public List<AttemptDTO> getAttemptsByStudent(@PathVariable String name) {
+        return attemptService.getAttemptsByStudent(name);
     }
 
     @GetMapping("/quiz/{quizId}")
-    public List<AttemptDTO> getAttemptsByQuiz(@PathVariable Long quizId, Authentication authentication) {
-        return attemptService.getAttemptsByQuiz(quizId, authentication.getName());
+    public List<AttemptDTO> getAttemptsByQuiz(@PathVariable Long quizId) {
+        return attemptService.getAttemptsByQuiz(quizId);
     }
 }

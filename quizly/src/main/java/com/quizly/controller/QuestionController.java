@@ -30,8 +30,8 @@ public class QuestionController {
     }
 
     @GetMapping("/quiz/{quizId}/answer-key")
-    public List<QuestionDTO> getQuestionAnswerKey(@PathVariable Long quizId, Authentication authentication) {
-        return questionService.getAnswerKey(quizId, authentication.getName());
+    public List<QuestionDTO> getQuestionAnswerKey(@PathVariable Long quizId) {
+        return questionService.getAnswerKey(quizId);
     }
 
     @DeleteMapping("/{id}")

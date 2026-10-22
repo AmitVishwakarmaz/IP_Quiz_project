@@ -276,7 +276,7 @@
         <nav class="nav" aria-label="Main navigation">
             <button class="active" type="button" data-view="overview"><span class="nav-icon">⌂</span>Overview</button>
             <button type="button" data-view="quizzes"><span class="nav-icon">▤</span>Explore quizzes</button>
-            <button type="button" data-view="take-quiz"><span class="nav-icon">▶</span>Take a quiz</button>
+            <button type="button" id="takeQuizNav" data-view="take-quiz"><span class="nav-icon">▶</span>Take a quiz</button>
             <button class="instructor-nav" type="button" data-view="manage-quizzes" hidden><span class="nav-icon">＋</span>Manage quizzes</button>
             <button class="instructor-nav" type="button" data-view="manage-questions" hidden><span class="nav-icon">☷</span>Questions</button>
             <button class="instructor-nav" type="button" data-view="instructors" hidden><span class="nav-icon">♙</span>Instructors</button>
@@ -308,7 +308,7 @@
                     <div class="eyebrow">A little learning goes a long way</div>
                     <h1>Make every answer count.</h1>
                     <p>Explore quick quizzes, challenge yourself, and keep your curiosity moving.</p>
-                    <button class="button button-light" type="button" data-view="take-quiz">Find your next quiz <span aria-hidden="true">→</span></button>
+                    <button class="button button-light" id="findQuizButton" type="button" data-view="take-quiz">Find your next quiz <span aria-hidden="true">→</span></button>
                 </div>
                 <div class="hero-art" aria-hidden="true">✦</div>
             </div>
@@ -364,7 +364,7 @@
                         <button class="button" type="submit">Create quiz</button>
                     </form>
                 </div>
-                <div class="panel"><div class="section-heading"><div><h2>Your quiz list</h2><p>Manage the quizzes on this platform.</p></div><button class="button button-ghost button-small" type="button" data-action="refresh-quizzes">Refresh</button></div><div class="list" id="managedQuizzes"></div></div>
+                <div class="panel"><div class="section-heading"><div><h2>All platform quizzes</h2><p>Browse every quiz and view its questions and answer key. You can delete only quizzes you created.</p></div><button class="button button-ghost button-small" type="button" data-action="refresh-quizzes">Refresh</button></div><div class="list" id="managedQuizzes"></div></div>
             </div>
         </section>
 
@@ -407,16 +407,12 @@
             <div class="page-heading"><div><div class="eyebrow">Instructor studio</div><h1>Results &amp; insights</h1><p class="subheading">Review student attempts and quiz performance.</p></div></div>
             <div class="content-grid">
                 <div class="panel">
-                    <div class="section-heading"><div><h2>Student attempts</h2><p>Search using the student's name.</p></div></div>
-                    <form id="studentAttemptsForm" class="form-grid">
-                        <div class="field"><label for="resultStudentName">Student name</label><input id="resultStudentName" required></div>
-                        <div class="field" style="align-self:end"><button class="button button-ghost" type="submit">Search attempts</button></div>
+                    <div class="section-heading"><div><h2>Quiz attempts</h2><p>All attempts are shown by default. Optionally filter by quiz, then open detailed answers.</p></div></div>
+                    <form id="quizAttemptsForm" class="form-grid">
+                        <div class="field"><label for="resultsQuiz">Filter by quiz</label><select id="resultsQuiz"><option value="">All quizzes</option></select></div>
+                        <div class="field" style="align-self:end"><button class="button button-ghost" type="submit">Refresh attempts</button></div>
                     </form>
-                    <div id="studentAttempts"></div>
-                    <form id="attemptResultsForm" class="form-grid" style="margin-top:22px">
-                        <div class="field"><label for="resultAttemptId">Attempt ID</label><input id="resultAttemptId" type="number" min="1" required></div>
-                        <div class="field" style="align-self:end"><button class="button button-ghost" type="submit">View answers</button></div>
-                    </form>
+                    <div id="quizAttempts"></div>
                     <div id="attemptResults"></div>
                 </div>
                 <div class="panel">
@@ -532,6 +528,7 @@
         managedQuizzes = [];
         sessionStorage.removeItem(TOKEN_KEY);
         updateAuthUI();
+        loadQuizzes();
         if (showMessage) showNotice('globalNotice', 'You have signed out.', 'info');
     }
 
@@ -545,14 +542,18 @@
             ? currentUser.name.trim().slice(0, 1).toUpperCase() : '';
         const instructor = signedIn && currentUser.role === 'INSTRUCTOR';
         const student = signedIn && currentUser.role === 'STUDENT';
+        document.getElementById('takeQuizNav').hidden = instructor;
+        document.getElementById('findQuizButton').hidden = instructor;
         document.querySelectorAll('.instructor-nav').forEach(button => { button.hidden = !instructor; });
         document.querySelectorAll('.student-nav').forEach(button => { button.hidden = !student; });
         document.getElementById('studentAccountPrompt').hidden = student;
         document.getElementById('studentSignIn').hidden = student;
-        if ((!instructor && ['manage-quizzes', 'manage-questions', 'instructors', 'results'].includes(activeView()))
+        if ((instructor && activeView() === 'take-quiz')
+            || (!instructor && ['manage-quizzes', 'manage-questions', 'instructors', 'results'].includes(activeView()))
             || (!student && activeView() === 'student-results')) {
             showView('overview');
         }
+        if (instructor) loadQuizzes();
     }
 
     function activeView() {
@@ -571,13 +572,21 @@
             showNotice('globalNotice', 'Sign in with a student account to view your progress.', 'info');
             return;
         }
+        if (name === 'take-quiz' && currentUser?.role === 'INSTRUCTOR') {
+            showNotice('globalNotice', 'Instructor accounts can manage and review quizzes, but cannot take them.', 'info');
+            return;
+        }
         document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === `page-${name}`));
         document.querySelectorAll('.nav [data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === name));
         document.getElementById('currentPage').textContent = pageTitles[name] || 'Overview';
         if (name === 'manage-quizzes') loadManagedQuizzes();
         if (name === 'manage-questions') fillQuizSelects();
         if (name === 'instructors') loadInstructors();
-        if (name === 'results') fillQuizSelects();
+        if (name === 'results') {
+            fillQuizSelects();
+            document.getElementById('resultsQuiz').value = '';
+            loadQuizAttempts();
+        }
         if (name === 'student-results') loadMyAttempts();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -616,7 +625,7 @@
             <div class="quiz-card-top"><div class="quiz-symbol" aria-hidden="true">✦</div><span class="badge">${escapeHTML(quiz.category || 'General')}</span></div>
             <h3>${escapeHTML(quiz.title)}</h3>
             <p>${Number(quiz.timeLimitMinutes) || 0} min · Quiz ${escapeHTML(quiz.id)}</p>
-            <button class="button button-ghost button-small" type="button" data-take-id="${escapeHTML(quiz.id)}">Take this quiz →</button>
+            ${currentUser?.role === 'INSTRUCTOR' ? '' : `<button class="button button-ghost button-small" type="button" data-take-id="${escapeHTML(quiz.id)}">Take this quiz →</button>`}
         </article>`;
     }
 
@@ -641,14 +650,16 @@
         const selectIds = [
             { id: 'takeQuizSelect', items: quizzes },
             { id: 'questionQuiz', items: managedQuizzes },
-            { id: 'viewQuestionQuiz', items: managedQuizzes },
-            { id: 'analyticsQuiz', items: managedQuizzes }
+            { id: 'viewQuestionQuiz', items: quizzes },
+            { id: 'resultsQuiz', items: quizzes },
+            { id: 'analyticsQuiz', items: quizzes }
         ];
         selectIds.forEach(({ id, items }) => {
             const select = document.getElementById(id);
             if (!select) return;
             const previous = select.value;
-            select.innerHTML = '<option value="">Choose a quiz</option>' + items.map(quiz =>
+            const firstOption = id === 'resultsQuiz' ? 'All quizzes' : 'Choose a quiz';
+            select.innerHTML = `<option value="">${firstOption}</option>` + items.map(quiz =>
                 `<option value="${escapeHTML(quiz.id)}">${escapeHTML(quiz.title)} (ID ${escapeHTML(quiz.id)})</option>`
             ).join('');
             if (items.some(quiz => String(quiz.id) === previous)) select.value = previous;
@@ -668,10 +679,13 @@
     }
 
     function managedQuizList() {
-        if (!managedQuizzes.length) return '<div class="empty-state">No quizzes yet. Create your first one here.</div>';
-        return managedQuizzes.map(quiz => `<div class="list-row">
-            <div class="list-row-main"><strong>${escapeHTML(quiz.title)}</strong><span>${escapeHTML(quiz.category)} · ${Number(quiz.timeLimitMinutes) || 0} min · ID ${escapeHTML(quiz.id)}</span></div>
-            <button class="button button-danger button-small" type="button" data-delete-quiz="${escapeHTML(quiz.id)}">Delete</button>
+        if (!quizzes.length) return '<div class="empty-state">No quizzes are available yet.</div>';
+        return quizzes.map(quiz => `<div class="list-row">
+            <div class="list-row-main"><strong>${escapeHTML(quiz.title)}</strong><span>${escapeHTML(quiz.category)} · ${Number(quiz.timeLimitMinutes) || 0} min · ID ${escapeHTML(quiz.id)}${String(quiz.instructorId) === String(currentUser?.id) ? ' · Created by you' : ''}</span></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="button button-ghost button-small" type="button" data-view-key="${escapeHTML(quiz.id)}">View questions &amp; answers</button>
+                ${String(quiz.instructorId) === String(currentUser?.id) ? `<button class="button button-danger button-small" type="button" data-delete-quiz="${escapeHTML(quiz.id)}">Delete</button>` : ''}
+            </div>
         </div>`).join('');
     }
 
@@ -707,13 +721,34 @@
                 list.innerHTML = '<div class="empty-state">No questions have been added to this quiz.</div>';
                 return;
             }
-            list.innerHTML = `<div class="list">${questions.map(question => `<div class="list-row">
-                <div class="list-row-main"><strong>${escapeHTML(question.questionText)}</strong><span>Correct answer: ${escapeHTML(question.correctOption)} · ID ${escapeHTML(question.id)}</span></div>
-                <button class="button button-danger button-small" type="button" data-delete-question="${escapeHTML(question.id)}" data-quiz-id="${escapeHTML(quizId)}">Delete</button>
+            const quiz = quizzes.find(item => String(item.id) === String(quizId));
+            list.innerHTML = `<div class="list">${questions.map((question, index) => `<div class="list-row">
+                <div class="list-row-main">
+                    <strong>${index + 1}. ${escapeHTML(question.questionText)}</strong>
+                    <span>${['A', 'B', 'C', 'D'].map(letter =>
+                        `${letter}. ${escapeHTML(question[`option${letter}`])}${letter === question.correctOption ? ' ✓ (correct)' : ''}`
+                    ).join(' · ')}</span>
+                    <span>Answer key: ${escapeHTML(question.correctOption)} — ${escapeHTML(question[`option${question.correctOption}`])}${question.category ? ` · ${escapeHTML(question.category)}` : ''} · ID ${escapeHTML(question.id)}</span>
+                </div>
+                ${String(quiz?.instructorId) === String(currentUser?.id) ? `<button class="button button-danger button-small" type="button" data-delete-question="${escapeHTML(question.id)}" data-quiz-id="${escapeHTML(quizId)}">Delete</button>` : ''}
             </div>`).join('')}</div>`;
         } catch (error) {
             list.innerHTML = `<div class="empty-state">${escapeHTML(error.message)}</div>`;
         }
+    }
+
+    function renderAnswerDetails(details) {
+        if (!details.length) return '<div class="empty-state">No answer details were saved for this attempt.</div>';
+        return details.map((item, index) => {
+            const answerText = letter => ['A', 'B', 'C', 'D'].includes(letter)
+                ? `${letter} — ${escapeHTML(item[`option${letter}`] || '')}`
+                : escapeHTML(letter || 'Not answered');
+            return `<div class="result-box ${item.correct ? '' : 'wrong'}">
+                <p><strong>${index + 1}. ${escapeHTML(item.questionText)}</strong></p>
+                <p>Student answer: ${answerText(item.selectedOption)}</p>
+                <p>Correct answer: ${answerText(item.correctOption)} ${item.correct ? '— Correct' : '— Incorrect'}</p>
+            </div>`;
+        }).join('');
     }
 
     function setQuizToTake(id) {
@@ -879,38 +914,27 @@
                 })
             });
             form.hidden = true;
+            const details = await api(`/results/attempt/${encodeURIComponent(attempt.id)}`);
             showNotice('quizOutcome', `Quiz submitted — your score is ${attempt.score} out of ${attempt.totalQuestions}.`, 'success');
+            document.getElementById('quizOutcome').insertAdjacentHTML('beforeend',
+                `<section class="panel" style="margin-top:16px"><h2>Answer review</h2>${renderAnswerDetails(details)}</section>`);
             loadMyAttempts();
         } catch (error) {
             showNotice('quizOutcome', error.message, 'error');
         }
     });
 
-    document.getElementById('studentAttemptsForm').addEventListener('submit', async event => {
+    document.getElementById('quizAttemptsForm').addEventListener('submit', async event => {
         event.preventDefault();
-        const result = document.getElementById('studentAttempts');
-        result.innerHTML = '<div class="empty-state">Searching…</div>';
-        try {
-            const name = document.getElementById('resultStudentName').value.trim();
-            const attempts = await api(`/attempts/student/${encodeURIComponent(name)}`);
-            if (!attempts.length) {
-                result.innerHTML = '<div class="empty-state">No attempts found for that name.</div>';
-                return;
-            }
-            result.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Attempt</th><th>Quiz</th><th>Score</th><th>Date</th></tr></thead><tbody>${
-                attempts.map(attempt => `<tr><td>${escapeHTML(attempt.id)}</td><td>${escapeHTML(attempt.quizId)}</td><td>${escapeHTML(attempt.score)} / ${escapeHTML(attempt.totalQuestions)}</td><td>${escapeHTML(attempt.startTime || '—')}</td></tr>`).join('')
-            }</tbody></table></div>`;
-        } catch (error) {
-            result.innerHTML = `<div class="empty-state">${escapeHTML(error.message)}</div>`;
-        }
+        await loadQuizAttempts();
     });
 
-    document.getElementById('attemptResultsForm').addEventListener('submit', async event => {
+    document.getElementById('attemptResultsForm')?.addEventListener('submit', async event => {
         event.preventDefault();
         const result = document.getElementById('attemptResults');
         result.innerHTML = '<div class="empty-state">Loading results…</div>';
         try {
-            const id = document.getElementById('resultAttemptId').value;
+            const id = document.getElementById('resultAttemptId')?.value;
             const details = await api(`/results/attempt/${encodeURIComponent(id)}`);
             result.innerHTML = details.length ? details.map((item, index) => `<div class="result-box ${item.correct ? '' : 'wrong'}">
                 <p><strong>${index + 1}. ${escapeHTML(item.questionText)}</strong></p>
@@ -967,15 +991,50 @@
         }
     }
 
+    async function loadQuizAttempts() {
+        const result = document.getElementById('quizAttempts');
+        const detailArea = document.getElementById('attemptResults');
+        result.innerHTML = '<div class="empty-state">Loading attempts…</div>';
+        detailArea.innerHTML = '';
+        try {
+            const quizId = document.getElementById('resultsQuiz').value;
+            const attempts = await api(quizId
+                ? `/attempts/quiz/${encodeURIComponent(quizId)}`
+                : '/attempts');
+            if (!attempts.length) {
+                result.innerHTML = '<div class="empty-state">No student attempts have been submitted yet.</div>';
+                return;
+            }
+            result.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Attempt</th><th>Quiz</th><th>Student</th><th>Score</th><th>Date</th><th></th></tr></thead><tbody>${
+                attempts.map(attempt => {
+                    const quizTitle = quizzes.find(quiz => String(quiz.id) === String(attempt.quizId))?.title
+                        || `Quiz ${attempt.quizId}`;
+                    return `<tr><td>${escapeHTML(attempt.id)}</td><td>${escapeHTML(quizTitle)}</td><td>${escapeHTML(attempt.studentName)}</td><td>${escapeHTML(attempt.score)} / ${escapeHTML(attempt.totalQuestions)}</td><td>${escapeHTML(attempt.startTime || '—')}</td><td><button class="button button-ghost button-small" type="button" data-instructor-attempt="${escapeHTML(attempt.id)}">View answers</button></td></tr>`;
+                }).join('')
+            }</tbody></table></div>`;
+        } catch (error) {
+            result.innerHTML = `<div class="empty-state">${escapeHTML(error.message)}</div>`;
+        }
+    }
+
     document.addEventListener('click', async event => {
         const takeButton = event.target.closest('[data-take-id]');
         if (takeButton) {
             setQuizToTake(takeButton.dataset.takeId);
             return;
         }
+        const viewKeyButton = event.target.closest('[data-view-key]');
+        if (viewKeyButton) {
+            showView('manage-questions');
+            const quizSelect = document.getElementById('viewQuestionQuiz');
+            quizSelect.value = viewKeyButton.dataset.viewKey;
+            loadQuestionList(viewKeyButton.dataset.viewKey);
+            return;
+        }
         const deleteQuizButton = event.target.closest('[data-delete-quiz]');
         const deleteQuestionButton = event.target.closest('[data-delete-question]');
         const studentAttemptButton = event.target.closest('[data-student-attempt]');
+        const instructorAttemptButton = event.target.closest('[data-instructor-attempt]');
         const actionButton = event.target.closest('[data-action]');
         try {
             if (deleteQuizButton) {
@@ -989,10 +1048,12 @@
             } else if (studentAttemptButton) {
                 const details = await api(`/results/attempt/${encodeURIComponent(studentAttemptButton.dataset.studentAttempt)}`);
                 const output = document.getElementById('myAttemptDetails');
-                output.innerHTML = details.length ? `<h2 style="margin:24px 0 12px">Answer review</h2>${details.map((item, index) => `<div class="result-box ${item.correct ? '' : 'wrong'}">
-                    <p><strong>${index + 1}. ${escapeHTML(item.questionText)}</strong></p>
-                    <p>Your answer: ${escapeHTML(item.selectedOption)} · Correct answer: ${escapeHTML(item.correctOption)} ${item.correct ? '— Correct' : '— Incorrect'}</p>
-                </div>`).join('')}` : '<div class="empty-state">No answer details found for this attempt.</div>';
+                output.innerHTML = `<h2 style="margin:24px 0 12px">Answer review</h2>${renderAnswerDetails(details)}`;
+                output.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else if (instructorAttemptButton) {
+                const details = await api(`/results/attempt/${encodeURIComponent(instructorAttemptButton.dataset.instructorAttempt)}`);
+                const output = document.getElementById('attemptResults');
+                output.innerHTML = `<h2 style="margin:24px 0 12px">Attempt answer details</h2>${renderAnswerDetails(details)}`;
                 output.scrollIntoView({ behavior: 'smooth', block: 'start' });
             } else if (actionButton?.dataset.action === 'refresh-quizzes') {
                 await loadManagedQuizzes();

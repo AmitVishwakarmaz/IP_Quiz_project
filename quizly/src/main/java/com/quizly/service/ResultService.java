@@ -39,6 +39,10 @@ public class ResultService {
             dto.setAttemptId(entity.getAttempt() != null ? entity.getAttempt().getId() : null);
             dto.setQuestionId(entity.getQuestion() != null ? entity.getQuestion().getId() : null);
             dto.setQuestionText(entity.getQuestion() != null ? entity.getQuestion().getQuestionText() : "");
+            dto.setOptionA(entity.getQuestion() != null ? entity.getQuestion().getOptionA() : "");
+            dto.setOptionB(entity.getQuestion() != null ? entity.getQuestion().getOptionB() : "");
+            dto.setOptionC(entity.getQuestion() != null ? entity.getQuestion().getOptionC() : "");
+            dto.setOptionD(entity.getQuestion() != null ? entity.getQuestion().getOptionD() : "");
             dto.setSelectedOption(entity.getSelectedOption());
             dto.setCorrectOption(entity.getCorrectOption());
             dto.setCorrect(entity.isCorrect());
@@ -58,13 +62,9 @@ public class ResultService {
         return getResultsByAttempt(attemptId);
     }
 
-    public List<ResultDTO> getResultsByAttemptForInstructor(Long attemptId, String instructorEmail) {
-        AttemptEntity attempt = attemptRepository.findById(attemptId)
+    public List<ResultDTO> getResultsByAttemptForInstructor(Long attemptId) {
+        attemptRepository.findById(attemptId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attempt not found"));
-        if (attempt.getQuiz() == null || attempt.getQuiz().getInstructor() == null
-                || !attempt.getQuiz().getInstructor().getEmail().equalsIgnoreCase(instructorEmail)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only view results for your own quizzes");
-        }
         return getResultsByAttempt(attemptId);
     }
 
@@ -109,13 +109,9 @@ public class ResultService {
         return analytics;
     }
 
-    public Map<String, Object> getQuizAnalyticsForInstructor(Long quizId, String instructorEmail) {
-        var quiz = quizRepository.findById(quizId)
+    public Map<String, Object> getQuizAnalyticsForInstructor(Long quizId) {
+        quizRepository.findById(quizId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found"));
-        if (quiz.getInstructor() == null
-                || !quiz.getInstructor().getEmail().equalsIgnoreCase(instructorEmail)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only view analytics for your own quizzes");
-        }
         return getQuizAnalytics(quizId);
     }
 }
